@@ -26,7 +26,6 @@ def parse(string, char, appendlast=False, stripnewlines=True, begin_chars = {"["
             escaped = False
     if appendlast:
         ls.append(finstr)
-    print(string, char, ls)
     return ls
 
 def getfile(file): # jsut, get file i guess?
@@ -124,7 +123,7 @@ def interpret_val(inp, args=[]): # interpret values
             if char == ")" and not quotecheck and not escaped:
                 # handle expressions
                 lastopen = stack.pop()
-                print("solving: ",expsol)
+                # print("solving: ",expsol)
                 expsol = expsol[:lastopen] + str(solve(expsol[lastopen+1:index], args)) + expsol[index+1:]
                 index = lastopen
                 continue
@@ -135,10 +134,21 @@ def interpret_val(inp, args=[]): # interpret values
             if char == '\\':
                 escaped = True
             index+=1
-    print("solving:",expsol)
+    # print("solving:",expsol)
     return(solve(expsol, args))
 
-def interpret_code(parsed,args): # interpret command for command
+def error(msg,line=(),end=True):
+    if len(line) > 1:
+        print(f"error at line {line[0]}:\n{line[1]}")
+    else:
+        print("error at unknown location")
+        print("this is not as scary as it looks, it just means the error was spotted outside of the main loop in the interpreter")
+    print("error message:")
+    print(msg)
+    print("stopping..")
+    sys.exit()
+
+def interpret_code(parsed,args=[]): # interpret command for command
     i = 0 # use index for line number, more flexible than `for i`
     while i <= len(parsed) - 1:
         cmd = parsed[i]
@@ -146,17 +156,26 @@ def interpret_code(parsed,args): # interpret command for command
             case "echo":
                 print(interpret_val(cmd[1], args=args))
             case "":
-                interpret_val(cmd[1], args=args)
+                if len(cmd) == 2:
+                    interpret_val(cmd[1], args=args)
+                else:
+                    error("empty command only takes 1 argument, have you checked for unquoted dots?",(i,".".join(cmd)))
             case "if":
                 if interpret_val(cmd[1], args=args):
-                    print(compilecode(cmd[2][1:-1]))
-                    interpret_code(compilecode(cmd[2][1:-1]),args=args.append(interpret_val(cmd[3])))
+                    if len(cmd) == 4:
+                        interpret_code(compilecode(cmd[2][1:-1]),args+ast.literal_eval(interpret_val(cmd[3])))
+                    elif len(cmd) == 3:
+                        interpret_code(compilecode(cmd[2][1:-1]),args)
+                    else:
+                        error("invalid amount of values for if statement (if statements only take 2-3 + command), use like so;\nif.(True/False).{script}.[args];",(i,".".join(cmd)))
         i += 1
 
 def run(file,args=[]): # run.. file? simpler than whatever this is at least, cdrl.run() i guess idk im tired
-    interpret_code(compilecode(getfile(file)),args=args)
+    interpret_code(compilecode(getfile(file)),args)
 
+import ast
 import time
+import sys
 start = time.perf_counter()
 global vars
 vars = {"testvar":10}
