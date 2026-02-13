@@ -1,7 +1,3 @@
-# DEMO PROJECT
-# im moving the project to rust to learn more and because python is slow
-
-
 def parse(string, char, appendlast=False, stripnewlines=True, begin_chars = {"[", "(", "{"}, end_chars = {"]", ")", "}"}): # parse anything by a character but ignore if inside quotes or parenthathes
     if stripnewlines:
         string = string.replace("\n","") # strip \n
