@@ -47,7 +47,7 @@ def interpret_val(inp, args=[]): # interpret values
         escaped = False
         tokens = []
         chars = ""
-        regops = {"+","-","*","/","=","==","<=",">=","!=","+=","-=","*=","/=","!","||","&&","in"} # operators that use 2 values on each side and the symbol in between, like 1 + 1
+        regops = {"+","-","*","/","=","==","<=",">=","<",">","!=","+=","-=","*=","/=","!","||","&&","in"} # operators that use 2 values on each side and the symbol in between, like 1 + 1
         idx = 0
         while idx < len(exp):
             i = exp[idx]
@@ -57,12 +57,15 @@ def interpret_val(inp, args=[]): # interpret values
                         tokens.append(chars)
                         chars = ""
                         tokens.append(i + exp[idx+1])
-                elif i == "-" and not exp[idx-1] in regops: # check for negative numbers
+                        idx += 1
+                elif i == "-" and exp[idx-1] in regops: # check for negative numbers
                     chars += "-"
                 else:
                     tokens.append(chars)
                     chars = ""
                     tokens.append(i)
+            elif chars in vars and exp.replace(" ", "")[idx:idx+2] not in {"=", "+=", "-=", "*=", "/="}:
+                    chars = str(vars[chars])
             elif i == '"' and not escaped: # handle escaping and quotes
                 quotecheck = not quotecheck
             elif i == '\\':
@@ -74,25 +77,29 @@ def interpret_val(inp, args=[]): # interpret values
                 escaped = False
                 continue
             idx += 1
+        if chars in vars and exp.replace(" ", "")[idx:idx+2] not in {"=", "+=", "-=", "*=", "/="}:
+            chars = str(vars[chars])
         tokens.append(chars)
         # solve step by step ↓
         # solve 1 expression
         def solvesmall(tokens):
-            if tokens[0] in vars:
-                    tokens[0] = str(vars[tokens[0]])
             if len(tokens) >= 3:                  
                 if tokens[1] in regops:
                     if tokens[1] == "=":
-                        vars[tokens[0]] = tokens[2]
-                        tokens.pop(1)
-                        tokens.pop(1)
+                        vars[tokens[0]] = tokens[2]     
+                    elif tokens[1] == "+=":
+                        vars[tokens[0]] = int(tokens[2]) + int(vars[tokens[0]])
+                    elif tokens[1] == "-=":
+                        vars[tokens[0]] = int(tokens[2]) - int(vars[tokens[0]])
+                    elif tokens[1] == "*=":
+                        vars[tokens[0]] = int(tokens[2]) * int(vars[tokens[0]])
+                    elif tokens[1] == "/=":
+                        vars[tokens[0]] = int(tokens[2]) / int(vars[tokens[0]])
                     else:
                         tokens[0] = eval(str(tokens[0])+tokens[1]+str(tokens[2]))
-                        tokens.pop(1)
-                        tokens.pop(1)
+                    tokens.pop(1)
+                    tokens.pop(1)
         # go through expressions
-        if len(tokens) == 1:
-            solvesmall(tokens)
         while len(tokens) > 1:
             solvesmall(tokens)
         return tokens[0]
@@ -155,6 +162,8 @@ def interpret_code(parsed,args=[]): # interpret command for command
         match cmd[0]:
             case "echo":
                 print(interpret_val(cmd[1], args=args))
+            case "sleep":
+                time.sleep(int(interpret_val(cmd[1], args=args)))
             case "":
                 if len(cmd) == 2:
                     interpret_val(cmd[1], args=args)
@@ -168,6 +177,16 @@ def interpret_code(parsed,args=[]): # interpret command for command
                         interpret_code(compilecode(cmd[2][1:-1]),args)
                     else:
                         error("invalid amount of values for if statement (if statements only take 2-3 + command), use like so;\nif.(True/False).{script}.[args];",(i,".".join(cmd)))
+            case "while":
+                while True:
+                    if not interpret_val(cmd[1], args=args):
+                        break
+                    if len(cmd) == 4:
+                        interpret_code(compilecode(cmd[2][1:-1]),args+ast.literal_eval(interpret_val(cmd[3])))
+                    elif len(cmd) == 3:
+                        interpret_code(compilecode(cmd[2][1:-1]),args)
+                    else:
+                        error("invalid amount of values for while loop (while loops only take 2-3 + command), use like so;\nwhile.(amt).{script}.[args];",(i,".".join(cmd)))
         i += 1
 
 def run(file,args=[]): # run.. file? simpler than whatever this is at least, cdrl.run() i guess idk im tired
